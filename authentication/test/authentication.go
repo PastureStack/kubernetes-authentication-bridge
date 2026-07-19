@@ -1,9 +1,13 @@
 package testauthentication
 
-import k8sAuthentication "k8s.io/client-go/pkg/apis/authentication"
+import (
+	"context"
+
+	"github.com/PastureStack/kubernetes-authentication-bridge/authentication"
+)
 
 var (
-	testUserInfo = map[string]k8sAuthentication.UserInfo{
+	testUserInfo = map[string]authentication.UserInfo{
 		"test1": {
 			Username: "test1",
 		},
@@ -21,7 +25,7 @@ var (
 
 type Provider struct{}
 
-func (p *Provider) Lookup(token string) (*k8sAuthentication.UserInfo, error) {
+func (p *Provider) Lookup(_ context.Context, token string) (*authentication.UserInfo, error) {
 	userInfo, ok := testUserInfo[token]
 	if !ok {
 		return nil, nil

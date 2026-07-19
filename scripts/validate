@@ -1,20 +1,40 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-cd $(dirname $0)/..
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+cd "${repo_root}"
 
-echo Running validation
-
-PACKAGES=". $(find -name '*.go' | xargs -I{} dirname {} |  cut -f2 -d/ | sort -u | grep -Ev '(^\.$|.git|.trash-cache|vendor|bin)' | sed -e 's!^!./!' -e 's!$!/...!')"
-
-echo Running: go vet
-go vet ${PACKAGES}
-echo Running: golint
-for i in ${PACKAGES}; do
-    if [ -n "$(golint $i | grep -v 'should have comment.*or be unexported' | tee /dev/stderr)" ]; then
-        failed=true
-    fi
+unformatted=$(find . -path './.git' -prune -o -name '*.go' -type f -print0 | xargs -0 gofmt -l)
+if [ -n "${unformatted}" ]; then
+    printf '%s\n' "${unformatted}" >&2
+    exit 1
+fi
+go vet -mod=mod ./...
+test "$(go list -mod=mod -m all | wc -l)" -eq 1
+test ! -e vendor
+test ! -e vendor.conf
+grep -Fx 'go 1.26.5' go.mod >/dev/null
+grep -Fx 'ARG GO_VERSION=1.26.5' Dockerfile.dapper >/dev/null
+grep -Fx '          GO_VERSION: 1.26.5' .github/workflows/codeql-verification.yml >/dev/null
+grep -Fx 'ARG DOCKER_VERSION=29.7.2' Dockerfile.dapper >/dev/null
+grep -Fx 'ARG DOCKER_LINUX_AMD64_SHA256=803d433f226db4776e1768fd319fc6c6e4935a456acf84fcc0080818b854bc8f' Dockerfile.dapper >/dev/null
+grep -F 'docker:29.7.2-cli@sha256:000bb62ff495f986c9f5578eb67cc2cb98b91138eda81d7762d5371eb8a497fe' Dockerfile.dapper >/dev/null
+grep -F 'docker/buildx-bin:0.36.1@sha256:1f2f6b2be4a2511ada67336e76892f1a588c89746009dd4b21069e4d867465be' Dockerfile.dapper >/dev/null
+grep -F 'ubuntu:26.04@sha256:678c6550cc43645e08669028bc177f50be4e7c5b8cca677067b1914d4afc7a03' Dockerfile.dapper >/dev/null
+grep -F 'gcr.io/distroless/static-debian12@sha256:4b2a093ef4649bccd586625090a3c668b254cfe180dee54f4c94f3e9bd7e381e' package/Dockerfile >/dev/null
+grep -Fx "UBUNTU_APT_SNAPSHOT='20260808T000000Z'" package/ubuntu-apt.lock >/dev/null
+scan_paths=(README.md SECURITY.md COMPATIBILITY.md Dockerfile.dapper Makefile package scripts)
+if [ -d .github ]; then
+    scan_paths+=(.github)
+fi
+if grep -R -Eiq 'v[0-9]+\.[0-9]+\.[0-9]+-(pasturestack|rancher)[0-9.]+' "${scan_paths[@]}"; then
+    echo BRANDED_VERSION_SUFFIX_PRESENT >&2
+    exit 1
+fi
+for script in scripts/*; do
+    bash -n "${script}"
 done
-test -z "$failed"
-echo Running: go fmt
-test -z "$(go fmt ${PACKAGES} | tee /dev/stderr)"
+VERSION_OVERRIDE=0.0.12
+source scripts/version
+test "${VERSION}" = 0.0.12
+echo KUBERNETES_AUTHENTICATION_BRIDGE_VALIDATION_OK

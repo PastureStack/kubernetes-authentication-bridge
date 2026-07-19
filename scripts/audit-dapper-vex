@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -ne 3 ]; then
+    echo "usage: $0 RAW_TRIVY_JSON OPENVEX_JSON OUTPUT_JSON" >&2
+    exit 2
+fi
+
+raw_scan=$1
+vex_document=$2
+output=$3
+
+jq -n \
+    --slurpfile raw "${raw_scan}" \
+    --slurpfile vex "${vex_document}" '
+      def key: [.id, .purl] | join("|");
+      ([
+        $raw[0].Results[]?.Vulnerabilities[]?
+        | select(.Severity == "CRITICAL" or .Severity == "HIGH")
+        | {id:.VulnerabilityID,purl:.PkgIdentifier.PURL}
+      ] | unique_by(.id, .purl)) as $raw_findings
+      | ([
+          $vex[0].statements[] as $statement
+          | $statement.products[]
+          | {
+              id:$statement.vulnerability.name,
+              purl:."@id",
+              status:$statement.status,
+              justification:$statement.justification,
+              impact_statement:$statement.impact_statement
+            }
+        ] | unique_by(.id, .purl)) as $vex_findings
+      | ($raw_findings | map(key)) as $raw_keys
+      | ($vex_findings | map(key)) as $vex_keys
+      | {
+          raw_findings:($raw_findings | length),
+          vex_statements:($vex_findings | length),
+          missing_from_vex:($raw_keys - $vex_keys),
+          extra_in_vex:($vex_keys - $raw_keys),
+          invalid_statements:([
+            $vex_findings[]
+            | select(
+                .status != "not_affected" or
+                .justification != "vulnerable_code_not_in_execute_path" or
+                (.impact_statement | type) != "string" or
+                (.impact_statement | length) < 80
+              )
+          ] | length)
+        }
+    ' > "${output}"

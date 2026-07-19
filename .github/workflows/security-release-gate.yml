@@ -1,0 +1,437 @@
+name: Manual security release gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kubernetes-authentication-bridge-security-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Build, test, integrate, scan, and inventory
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CANDIDATE_VERSION: 0.0.12
+      CANDIDATE_TAG: v0.0.12
+      IMAGE: pasturestack/kubernetes-authentication-bridge:v0.0.12
+      DAPPER_IMAGE: pasturestack-kubernetes-authentication-bridge-dapper:0.0.12
+      KUBERNETES_SERVER_VERSION: v1.12.10
+      KUBERNETES_SERVER_SHA512: 201ca1af1c4fbecd598a8a6dc0ff5c865e4dab767ec2e768e8100b0c6c450c5ae1ab773aad9e5cdf3f61c15abf3a28f7c4640fbaaac097096905366acbd90a97
+      ETCD_TEST_IMAGE: registry.k8s.io/etcd-amd64:3.2.24@sha256:7b073bdab8c52dc23dfb3e2101597d30304437869ad8c0b425301e96a066c408
+      TRIVY_IMAGE: aquasec/trivy:0.73.0@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c
+      TRIVY_CACHE: /tmp/pasturestack-kubernetes-authentication-bridge-trivy-cache
+    steps:
+      - name: Check out the complete source history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Record the exact source boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-list --count b2b2da6fad02a49336e11edeb7c1700e356aa799..HEAD)" -eq 1
+          mkdir -p dist
+          printf '%s\n' "$GITHUB_SHA" > dist/source-revision.txt
+          git ls-tree -r --name-only HEAD | LC_ALL=C sort > dist/source-tree.txt
+          docker version
+          docker buildx version
+
+      - name: Validate, test, and build twice reproducibly
+        shell: bash
+        run: |
+          set -euo pipefail
+          make dapper-image DAPPER_IMAGE="$DAPPER_IMAGE"
+          run_dapper() {
+            docker run --rm \
+              -v "$GITHUB_WORKSPACE:/source" \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -e DAPPER_UID="$(id -u)" \
+              -e DAPPER_GID="$(id -g)" \
+              -e ARCH=amd64 \
+              -e GOFLAGS=-mod=mod \
+              -e GOTOOLCHAIN=local \
+              -e VERSION_OVERRIDE="$CANDIDATE_VERSION" \
+              "$DAPPER_IMAGE" "$@"
+          }
+          run_dapper validate
+          run_dapper test
+          run_dapper build
+          cp bin/kubernetes-authentication-bridge dist/kubernetes-authentication-bridge.first
+          run_dapper build
+          cmp dist/kubernetes-authentication-bridge.first bin/kubernetes-authentication-bridge
+          mv dist/kubernetes-authentication-bridge.first dist/kubernetes-authentication-bridge
+          sha256sum dist/kubernetes-authentication-bridge > dist/kubernetes-authentication-bridge.sha256
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/source" \
+            -e DAPPER_UID="$(id -u)" \
+            -e DAPPER_GID="$(id -g)" \
+            "$DAPPER_IMAGE" bash -lc \
+            'go version -m /source/bin/kubernetes-authentication-bridge' \
+            > dist/kubernetes-authentication-bridge-go-version.txt
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/source" \
+            -e DAPPER_UID="$(id -u)" \
+            -e DAPPER_GID="$(id -g)" \
+            "$DAPPER_IMAGE" bash -lc \
+            'cd /source && go list -mod=mod -m -f "{{if .Version}}{{.Path}}|{{.Version}}{{end}}" all' |
+            sed '/^$/d' | tr '|' '\t' > dist/go-modules.tsv
+          test ! -s dist/go-modules.tsv
+
+      - name: Build and inspect the non-root runtime image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/source" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -e DAPPER_UID="$(id -u)" \
+            -e DAPPER_GID="$(id -g)" \
+            -e ARCH=amd64 \
+            -e GOFLAGS=-mod=mod \
+            -e GOTOOLCHAIN=local \
+            -e VERSION_OVERRIDE="$CANDIDATE_VERSION" \
+            -e TAG="$CANDIDATE_TAG" \
+            -e IMAGE_NAME="$IMAGE" \
+            -e SOURCE_REVISION="$GITHUB_SHA" \
+            "$DAPPER_IMAGE" package
+          test "$(cat dist/images)" = "$IMAGE"
+          test "$(docker image inspect "$IMAGE" --format '{{.Config.User}}')" = '65532:65532'
+          test "$(docker image inspect "$IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" = "$CANDIDATE_VERSION"
+          test "$(docker image inspect "$IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$GITHUB_SHA"
+          docker run --rm --read-only "$IMAGE" --version 2>&1 | grep -Fx "$CANDIDATE_VERSION"
+          if docker run --rm --entrypoint /bin/sh "$IMAGE" -c true >/dev/null 2>&1; then
+            echo 'runtime image unexpectedly contains a shell' >&2
+            exit 1
+          fi
+          license_container=$(docker create "$IMAGE")
+          mkdir -p dist/runtime-licenses
+          docker cp "$license_container:/licenses/." dist/runtime-licenses/
+          docker rm "$license_container" >/dev/null
+          test -s dist/runtime-licenses/LICENSE
+          test -s dist/runtime-licenses/ORIGIN.md
+
+      - name: Smoke-test the runtime contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          container="pstk-auth-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          cleanup() {
+            docker logs "$container" > dist/runtime-smoke.log 2>&1 || true
+            docker rm -f "$container" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker run -d --name "$container" --network host --read-only \
+            "$IMAGE" --test-authentication \
+            --authentication-webhook-port=18082 --health-check-port=18083 >/dev/null
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18083/healthcheck >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:18083/healthcheck | grep -Fx ok
+          curl -fsS -H 'Content-Type: application/json' \
+            --data '{"apiVersion":"authentication.k8s.io/v1beta1","kind":"TokenReview","spec":{"token":"test1"}}' \
+            http://127.0.0.1:18082/ > dist/token-review-valid.json
+          jq -e '.apiVersion == "authentication.k8s.io/v1beta1" and .kind == "TokenReview" and .status.authenticated == true and .status.user.username == "test1"' \
+            dist/token-review-valid.json >/dev/null
+          curl -fsS -H 'Content-Type: application/json' \
+            --data '{"apiVersion":"authentication.k8s.io/v1beta1","kind":"TokenReview","spec":{"token":"invalid"}}' \
+            http://127.0.0.1:18082/ > dist/token-review-invalid.json
+          jq -e '.status.authenticated == false' dist/token-review-invalid.json >/dev/null
+
+      - name: Prove Kubernetes 1.12.10 TokenReview compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix="pstk-auth-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          auth_container="${prefix}-webhook"
+          etcd_container="${prefix}-etcd"
+          work_dir=$(mktemp -d "${RUNNER_TEMP}/${prefix}.XXXXXX")
+          api_pid=
+          stage=initializing
+          cleanup() {
+            status=$?
+            trap - EXIT
+            if [ -n "$api_pid" ]; then
+              kill "$api_pid" >/dev/null 2>&1 || true
+              wait "$api_pid" >/dev/null 2>&1 || true
+            fi
+            docker logs "$auth_container" > dist/authentication-webhook.log 2>&1 || true
+            docker logs "$etcd_container" > dist/etcd.log 2>&1 || true
+            docker rm -f "$auth_container" "$etcd_container" >/dev/null 2>&1 || true
+            if [ "$status" -ne 0 ]; then
+              echo "KUBERNETES_AUTHENTICATION_BRIDGE_INTEGRATION_FAILED stage=${stage}" >&2
+              tail -n 150 dist/kube-apiserver.log >&2 || true
+              tail -n 100 dist/authentication-webhook.log >&2 || true
+              tail -n 100 dist/etcd.log >&2 || true
+            fi
+            rm -rf -- "$work_dir"
+            exit "$status"
+          }
+          trap cleanup EXIT
+          wait_for() {
+            attempts=$1
+            delay=$2
+            shift 2
+            for attempt in $(seq 1 "$attempts"); do
+              if "$@" >/dev/null 2>&1; then
+                return 0
+              fi
+              sleep "$delay"
+            done
+            "$@"
+          }
+          checkpoint() {
+            stage=$1
+            echo "KUBERNETES_AUTHENTICATION_BRIDGE_GATE_STAGE=${stage}"
+          }
+
+          checkpoint verify-inputs
+          docker pull "$ETCD_TEST_IMAGE"
+          etcd_repository=${ETCD_TEST_IMAGE%@sha256:*}
+          etcd_digest=sha256:${ETCD_TEST_IMAGE##*@sha256:}
+          docker image inspect "$ETCD_TEST_IMAGE" --format '{{range .RepoDigests}}{{println .}}{{end}}' |
+            grep -Fx "${etcd_repository%%:*}@${etcd_digest}"
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 \
+            -o "$work_dir/kubernetes-server.tgz" \
+            "https://dl.k8s.io/release/${KUBERNETES_SERVER_VERSION}/kubernetes-server-linux-amd64.tar.gz"
+          echo "$KUBERNETES_SERVER_SHA512  $work_dir/kubernetes-server.tgz" | sha512sum -c -
+          tar -C "$work_dir" -xzf "$work_dir/kubernetes-server.tgz" \
+            kubernetes/server/bin/kube-apiserver
+          kube_apiserver="$work_dir/kubernetes/server/bin/kube-apiserver"
+          chmod 0755 "$kube_apiserver"
+
+          checkpoint start-webhook
+          docker run -d --name "$auth_container" --network host --read-only \
+            "$IMAGE" --test-authentication \
+            --authentication-webhook-port=18082 --health-check-port=18083 >/dev/null
+          wait_for 30 1 curl -fsS http://127.0.0.1:18083/healthcheck
+          cat > "$work_dir/webhook.kubeconfig" <<'EOF'
+          apiVersion: v1
+          kind: Config
+          clusters:
+          - name: authentication-bridge
+            cluster:
+              server: http://127.0.0.1:18082
+          users:
+          - name: apiserver
+            user: {}
+          contexts:
+          - name: webhook
+            context:
+              cluster: authentication-bridge
+              user: apiserver
+          current-context: webhook
+          EOF
+
+          checkpoint start-etcd
+          docker run -d --name "$etcd_container" -p 127.0.0.1::2379 \
+            --entrypoint /usr/local/bin/etcd "$ETCD_TEST_IMAGE" \
+            --name=auth-test \
+            --data-dir=/tmp/etcd-data \
+            --listen-client-urls=http://0.0.0.0:2379 \
+            --advertise-client-urls=http://127.0.0.1:2379 \
+            --listen-peer-urls=http://0.0.0.0:2380 \
+            --initial-advertise-peer-urls=http://127.0.0.1:2380 \
+            --initial-cluster=auth-test=http://127.0.0.1:2380 \
+            --initial-cluster-state=new >/dev/null
+          etcd_port=$(docker port "$etcd_container" 2379/tcp | sed 's/.*://')
+          wait_for 60 1 curl -fsS "http://127.0.0.1:${etcd_port}/health"
+
+          checkpoint start-kubernetes-api
+          mkdir -p "$work_dir/certs"
+          "$kube_apiserver" \
+            --etcd-servers="http://127.0.0.1:${etcd_port}" \
+            --storage-backend=etcd3 \
+            --cert-dir="$work_dir/certs" \
+            --insecure-port=0 \
+            --bind-address=127.0.0.1 \
+            --secure-port=16443 \
+            --advertise-address=127.0.0.1 \
+            --endpoint-reconciler-type=none \
+            --service-cluster-ip-range=10.43.0.0/16 \
+            --authorization-mode=AlwaysAllow \
+            --anonymous-auth=false \
+            --authentication-token-webhook-config-file="$work_dir/webhook.kubeconfig" \
+            --admission-control=NamespaceLifecycle \
+            > dist/kube-apiserver.log 2>&1 &
+          api_pid=$!
+          wait_for_api() {
+            for attempt in $(seq 1 90); do
+              status=$(curl -sk -o /dev/null -w '%{http_code}' \
+                -H 'Authorization: Bearer test1' https://127.0.0.1:16443/healthz || true)
+              if [ "$status" = 200 ]; then
+                return 0
+              fi
+              if ! kill -0 "$api_pid" >/dev/null 2>&1; then
+                wait "$api_pid" >/dev/null 2>&1 || true
+                return 1
+              fi
+              sleep 1
+            done
+            return 1
+          }
+          wait_for_api
+
+          checkpoint verify-tokenreview-round-trip
+          valid_status=$(curl -sk -o dist/kubernetes-valid-token.json -w '%{http_code}' \
+            -H 'Authorization: Bearer test1' https://127.0.0.1:16443/api)
+          invalid_status=$(curl -sk -o dist/kubernetes-invalid-token.json -w '%{http_code}' \
+            -H 'Authorization: Bearer invalid' https://127.0.0.1:16443/api)
+          test "$valid_status" = 200
+          test "$invalid_status" = 401
+          jq -e '.kind == "APIVersions"' dist/kubernetes-valid-token.json >/dev/null
+          jq -n \
+            --arg kubernetes "${KUBERNETES_SERVER_VERSION#v}" \
+            --arg token_review authentication.k8s.io/v1beta1 \
+            --argjson valid_status "$valid_status" \
+            --argjson invalid_status "$invalid_status" \
+            '{kubernetes:$kubernetes,token_review:$token_review,valid_status:$valid_status,invalid_status:$invalid_status,passed:true}' \
+            > dist/kubernetes-integration.json
+
+      - name: Run Go vulnerability analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/source" \
+            -e DAPPER_UID="$(id -u)" \
+            -e DAPPER_GID="$(id -g)" \
+            -e GOFLAGS=-mod=mod \
+            -e GOTOOLCHAIN=local \
+            "$DAPPER_IMAGE" bash -lc \
+            'cd /source && go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 -json ./...' \
+            > dist/govulncheck.json
+          if jq -e 'select(.finding != null)' dist/govulncheck.json >/dev/null; then
+            echo 'reachable Go vulnerability found' >&2
+            exit 1
+          fi
+
+      - name: Scan source, runtime, and build environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$TRIVY_CACHE"
+          docker pull "$TRIVY_IMAGE"
+          docker image inspect "$TRIVY_IMAGE" --format '{{range .RepoDigests}}{{println .}}{{end}}' |
+            grep -Fq 'aquasec/trivy@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c'
+          test "$(docker run --rm "$TRIVY_IMAGE" --version)" = 'Version: 0.73.0'
+          source_snapshot=$(mktemp -d "${RUNNER_TEMP}/auth-source.XXXXXX")
+          git archive HEAD | tar -x -C "$source_snapshot"
+          docker run --rm --network none \
+            -v "$source_snapshot:/workspace:ro" \
+            -v "$GITHUB_WORKSPACE/dist:/evidence" \
+            "$TRIVY_IMAGE" fs --scanners secret \
+            --secret-config /workspace/trivy-secret.yaml \
+            --format json --output /evidence/source-secret-scan.json /workspace
+          rm -rf -- "$source_snapshot"
+
+          docker run --rm \
+            -v "$TRIVY_CACHE:/root/.cache/trivy" \
+            "$TRIVY_IMAGE" image --cache-dir /root/.cache/trivy --download-db-only
+          run_image_scan() {
+            docker run --rm --network none \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v "$TRIVY_CACHE:/root/.cache/trivy" \
+              -v "$GITHUB_WORKSPACE:/source:ro" \
+              -v "$GITHUB_WORKSPACE/dist:/evidence" \
+              "$TRIVY_IMAGE" image --cache-dir /root/.cache/trivy \
+              --skip-db-update --offline-scan "$@"
+          }
+          run_image_scan --scanners vuln,secret --severity CRITICAL,HIGH \
+            --format json --output /evidence/runtime-scan.json "$IMAGE"
+          run_image_scan --scanners vuln,secret --severity CRITICAL,HIGH \
+            --format json --output /evidence/dapper-scan.json "$DAPPER_IMAGE"
+          run_image_scan --scanners vuln --severity CRITICAL,HIGH \
+            --vex /source/security/dapper.openvex.json \
+            --format json --output /evidence/dapper-applicable-scan.json "$DAPPER_IMAGE"
+          run_image_scan --scanners vuln --format cyclonedx \
+            --output /evidence/runtime-sbom.cdx.json "$IMAGE"
+
+          source_secrets=$(jq '[.Results[]?.Secrets[]?] | length' dist/source-secret-scan.json)
+          runtime_critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' dist/runtime-scan.json)
+          runtime_high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' dist/runtime-scan.json)
+          runtime_secrets=$(jq '[.Results[]?.Secrets[]?] | length' dist/runtime-scan.json)
+          dapper_critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' dist/dapper-scan.json)
+          dapper_high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' dist/dapper-scan.json)
+          dapper_applicable_critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' dist/dapper-applicable-scan.json)
+          dapper_applicable_high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' dist/dapper-applicable-scan.json)
+          jq -n \
+            --argjson source_secrets "$source_secrets" \
+            --argjson runtime_critical "$runtime_critical" \
+            --argjson runtime_high "$runtime_high" \
+            --argjson runtime_secrets "$runtime_secrets" \
+            --argjson dapper_critical "$dapper_critical" \
+            --argjson dapper_high "$dapper_high" \
+            --argjson dapper_applicable_critical "$dapper_applicable_critical" \
+            --argjson dapper_applicable_high "$dapper_applicable_high" \
+            '{source_secrets:$source_secrets,runtime:{critical:$runtime_critical,high:$runtime_high,secrets:$runtime_secrets},build_environment:{raw:{critical:$dapper_critical,high:$dapper_high},applicable:{critical:$dapper_applicable_critical,high:$dapper_applicable_high},vex:"security/dapper.openvex.json"}}' \
+            > dist/security-counts.json
+          scripts/audit-dapper-vex \
+            dist/dapper-scan.json \
+            security/dapper.openvex.json \
+            dist/dapper-vex-audit.json
+
+      - name: Record evidence checksums
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          find dist -type f ! -name SHA256SUMS -print0 | LC_ALL=C sort -z |
+            xargs -0 sha256sum > dist/SHA256SUMS
+
+      - name: Upload short-lived security evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: kubernetes-authentication-bridge-security-evidence-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 9
+          include-hidden-files: false
+
+      - name: Enforce the recorded security result
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e '
+            .source_secrets == 0 and
+            .runtime.critical == 0 and
+            .runtime.high == 0 and
+            .runtime.secrets == 0 and
+            .build_environment.applicable.critical == 0 and
+            .build_environment.applicable.high == 0
+          ' dist/security-counts.json >/dev/null
+          jq -e '
+            .raw_findings == 49 and
+            .vex_statements == 49 and
+            (.missing_from_vex | length) == 0 and
+            (.extra_in_vex | length) == 0 and
+            .invalid_statements == 0
+          ' dist/dapper-vex-audit.json >/dev/null
+          jq -e '
+            .passed == true and
+            .kubernetes == "1.12.10" and
+            .token_review == "authentication.k8s.io/v1beta1" and
+            .valid_status == 200 and
+            .invalid_status == 401
+          ' dist/kubernetes-integration.json >/dev/null
+
+      - name: Remove verification-only images and cache
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          docker image rm -f "$IMAGE" "$DAPPER_IMAGE" "$TRIVY_IMAGE" "$ETCD_TEST_IMAGE"
+          docker builder prune --all --force

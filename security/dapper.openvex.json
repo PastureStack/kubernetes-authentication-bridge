@@ -1,0 +1,646 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/PastureStack/kubernetes-authentication-bridge/security/vex/build-environment/2",
+  "author": "PastureStack contributors",
+  "timestamp": "2026-08-10T05:50:00Z",
+  "version": 2,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2025-40190"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-46331"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-52908"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-52909"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-52910"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-52924"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53145"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53148"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53151"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53153"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53159"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53170"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53171"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53172"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53173"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53175"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53176"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53178"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53182"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53183"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53185"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53186"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53192"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53193"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53196"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53198"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53212"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53215"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53224"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53235"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53239"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53240"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53250"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53254"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53256"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53259"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53260"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53262"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53264"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53266"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53269"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53270"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53275"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53276"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53359"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-64531"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/linux-libc-dev@7.0.0-29.29?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The package contributes user-space kernel headers only. The affected Linux kernel code is not present or executable in the build container, which uses the runner host kernel."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34040"
+      },
+      "products": [
+        {
+          "@id": "pkg:golang/github.com/docker/docker@v28.5.2%2Bincompatible"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The scanned artifact is the client-only Docker Buildx plugin. The affected dockerd authorization-plugin request-body path is not compiled into or executed by this client plugin, and the build gate does not run dockerd inside the build container."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-41567"
+      },
+      "products": [
+        {
+          "@id": "pkg:golang/github.com/docker/docker@v28.5.2%2Bincompatible"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The scanned artifact is the client-only Docker Buildx plugin. The affected dockerd container-archive extraction and docker cp server path is not compiled into or executed by this client plugin, and the gate invokes image builds only."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-42306"
+      },
+      "products": [
+        {
+          "@id": "pkg:golang/github.com/docker/docker@v28.5.2%2Bincompatible"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The scanned artifact is the client-only Docker Buildx plugin. The affected dockerd docker cp mount-setup server path is not compiled into or executed by this client plugin, and the gate invokes image builds only."
+    }
+  ]
+}

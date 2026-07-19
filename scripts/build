@@ -1,10 +1,10 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-source $(dirname $0)/version
-
-cd $(dirname $0)/..
-
-mkdir -p bin
-[ "$(uname)" != "Darwin" ] && LINKFLAGS="-linkmode external -extldflags -static -s"
-CGO_ENABLED=0 go build -tags netgo -ldflags "-X main.VERSION=$VERSION $LINKFLAGS" -o bin/kubernetes-auth
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+source "${repo_root}/scripts/version"
+mkdir -p "${repo_root}/bin"
+cd "${repo_root}"
+CGO_ENABLED=0 go build -mod=mod -trimpath -buildvcs=false \
+    -ldflags "-s -w -buildid= -X main.VERSION=${VERSION}" \
+    -o bin/kubernetes-authentication-bridge .

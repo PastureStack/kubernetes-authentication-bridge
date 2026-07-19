@@ -1,31 +1,83 @@
-FROM ubuntu:16.04
-# FROM arm=armhf/ubuntu:16.04
+FROM docker:29.7.2-cli@sha256:000bb62ff495f986c9f5578eb67cc2cb98b91138eda81d7762d5371eb8a497fe AS bootstrap-ca-certificates
 
-ARG DAPPER_HOST_ARCH
-ENV HOST_ARCH=${DAPPER_HOST_ARCH} ARCH=${DAPPER_HOST_ARCH}
+FROM docker/buildx-bin:0.36.1@sha256:1f2f6b2be4a2511ada67336e76892f1a588c89746009dd4b21069e4d867465be AS buildx-plugin
 
-RUN apt-get update && \
-    apt-get install -y gcc ca-certificates git wget curl vim less file && \
-    rm -f /bin/sh && ln -s /bin/bash /bin/sh
+FROM ubuntu:26.04@sha256:678c6550cc43645e08669028bc177f50be4e7c5b8cca677067b1914d4afc7a03
 
-ENV GOLANG_ARCH_amd64=amd64 GOLANG_ARCH_arm=armv6l GOLANG_ARCH=GOLANG_ARCH_${ARCH} \
-    GOPATH=/go PATH=/go/bin:/usr/local/go/bin:${PATH} SHELL=/bin/bash
+COPY --from=bootstrap-ca-certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=buildx-plugin /buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
+COPY package/ubuntu-apt.lock /licenses/ubuntu-apt.lock
 
-RUN wget -O - https://storage.googleapis.com/golang/go1.8.3.linux-${!GOLANG_ARCH}.tar.gz | tar -xzf - -C /usr/local && \
-    go get github.com/rancher/trash && go get github.com/golang/lint/golint
+ARG DAPPER_HOST_ARCH=amd64
+ARG DOCKER_VERSION=29.7.2
+ARG DOCKER_LINUX_AMD64_SHA256=803d433f226db4776e1768fd319fc6c6e4935a456acf84fcc0080818b854bc8f
+ARG GO_VERSION=1.26.5
+ARG GO_LINUX_AMD64_SHA256=5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053
 
-ENV DOCKER_URL_amd64=https://get.docker.com/builds/Linux/x86_64/docker-1.10.3 \
-    DOCKER_URL_arm=https://github.com/rancher/docker/releases/download/v1.10.3-ros1/docker-1.10.3_arm \
-    DOCKER_URL=DOCKER_URL_${ARCH}
+ENV DEBIAN_FRONTEND=noninteractive
+ENV HOST_ARCH=${DAPPER_HOST_ARCH} \
+    ARCH=${DAPPER_HOST_ARCH} \
+    PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    SHELL=/bin/bash \
+    GOFLAGS=-mod=mod \
+    GOTOOLCHAIN=local \
+    GOTELEMETRY=off \
+    GOCACHE=/tmp/go-build-cache
 
-RUN wget -O - ${!DOCKER_URL} > /usr/bin/docker && chmod +x /usr/bin/docker
+RUN set -eux; \
+    . /licenses/ubuntu-apt.lock; \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec sed -i \
+        -e 's|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' \
+        -e 's|http://archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' {} +; \
+    printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::http::Pipeline-Depth "0";\nAcquire::https::CaInfo "/etc/ssl/certs/ca-certificates.crt";\nAcquire::AllowInsecureRepositories "false";\nAPT::Get::AllowUnauthenticated "false";\n' > /etc/apt/apt.conf.d/80pasturestack-retries; \
+    apt-get --snapshot "${UBUNTU_APT_SNAPSHOT}" update; \
+    apt-get --snapshot "${UBUNTU_APT_SNAPSHOT}" install -y --no-install-recommends \
+        bash="${UBUNTU_APT_BASH_VERSION}" \
+        ca-certificates="${UBUNTU_APT_CA_CERTIFICATES_VERSION}" \
+        curl="${UBUNTU_APT_CURL_VERSION}" \
+        file="${UBUNTU_APT_FILE_VERSION}" \
+        gcc="${UBUNTU_APT_GCC_VERSION}" \
+        git="${UBUNTU_APT_GIT_VERSION}" \
+        jq="${UBUNTU_APT_JQ_VERSION}" \
+        libc6-dev="${UBUNTU_APT_LIBC6_DEV_VERSION}" \
+        linux-libc-dev="${UBUNTU_APT_LINUX_LIBC_DEV_VERSION}" \
+        make="${UBUNTU_APT_MAKE_VERSION}" \
+        tar="${UBUNTU_APT_TAR_VERSION}" \
+        xz-utils="${UBUNTU_APT_XZ_UTILS_VERSION}"; \
+    { \
+        printf 'snapshot\t%s\n' "${UBUNTU_APT_SNAPSHOT}"; \
+        dpkg-query -W -f='${binary:Package}\t${Version}\n' | LC_ALL=C sort; \
+    } > /licenses/DAPPER-UBUNTU-APT-PACKAGES.tsv; \
+    test "${DAPPER_HOST_ARCH}" = amd64; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 10 --max-time 300 \
+        -o /tmp/go.tgz "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"; \
+    echo "${GO_LINUX_AMD64_SHA256}  /tmp/go.tgz" | sha256sum -c -; \
+    tar -C /usr/local -xzf /tmp/go.tgz; \
+    go version | grep -F "go${GO_VERSION} linux/amd64"; \
+    rm -f /tmp/go.tgz; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*; \
+    rm -f /usr/bin/pebble; \
+    rm -f /bin/sh; \
+    ln -s /bin/bash /bin/sh
 
-ENV DAPPER_SOURCE /go/src/github.com/rancher/kubernetes-auth/
-ENV DAPPER_OUTPUT ./bin ./dist
-ENV DAPPER_DOCKER_SOCKET true
-ENV TRASH_CACHE ${DAPPER_SOURCE}/.trash-cache
-ENV HOME ${DAPPER_SOURCE}
-WORKDIR ${DAPPER_SOURCE}
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 10 --max-time 300 \
+        -o /tmp/docker.tgz "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz"; \
+    echo "${DOCKER_LINUX_AMD64_SHA256}  /tmp/docker.tgz" | sha256sum -c -; \
+    tar xzf /tmp/docker.tgz -C /usr/bin --strip-components=1 docker/docker; \
+    rm -f /tmp/docker.tgz; \
+    chmod 0755 /usr/bin/docker /usr/local/libexec/docker/cli-plugins/docker-buildx; \
+    docker --version | grep -F "Docker version ${DOCKER_VERSION},"; \
+    docker buildx version | grep -F 'v0.36.1'
 
+RUN git config --system --add safe.directory '*'
+
+ENV DAPPER_SOURCE=/source \
+    DAPPER_OUTPUT="bin dist" \
+    DAPPER_DOCKER_SOCKET=true \
+    DAPPER_ENV="ARCH IMAGE_NAME TAG VERSION_OVERRIDE SOURCE_REVISION DOCKER_BUILD_NETWORK"
+
+WORKDIR /source
 ENTRYPOINT ["./scripts/entry"]
 CMD ["ci"]

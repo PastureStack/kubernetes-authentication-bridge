@@ -1,18 +1,19 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-    DIRTY="-dirty"
+candidate=${VERSION_OVERRIDE:-}
+if [ -z "${candidate}" ]; then
+    mapfile -t release_tags < <(git tag --points-at HEAD --list 'v[0-9]*.[0-9]*.[0-9]*' | LC_ALL=C sort -V)
+    if [ "${#release_tags[@]}" -gt 1 ]; then
+        echo "multiple numeric release tags point at HEAD" >&2
+        exit 1
+    fi
+    candidate=${release_tags[0]:-0.0.0}
 fi
-
-COMMIT=$(git rev-parse --short HEAD)
-GIT_TAG=$(git tag -l --contains HEAD | head -n 1)
-
-if [[ -z "$DIRTY" && -n "$GIT_TAG" ]]; then
-    VERSION=$GIT_TAG
-else
-    VERSION="${COMMIT}${DIRTY}"
+candidate=${candidate#v}
+if ! [[ "${candidate}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "VERSION_OVERRIDE must be a plain numeric semantic version such as 0.0.12" >&2
+    exit 1
 fi
-
-if [ -z "$ARCH" ]; then
-    ARCH=amd64
-fi
+VERSION=${candidate}
+export VERSION

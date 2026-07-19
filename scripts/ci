@@ -1,9 +1,9 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-cd $(dirname $0)
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
-./build
-./test
-./validate
-./package
+"${repo_root}/scripts/build"
+"${repo_root}/scripts/test"
+"${repo_root}/scripts/validate"
+"${repo_root}/scripts/package"

@@ -1,95 +1,149 @@
 package handlers
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"log"
 	"net/http"
 	"strings"
 
-	k8sAuthentication "k8s.io/client-go/pkg/apis/authentication"
-
-	log "github.com/Sirupsen/logrus"
-	"github.com/rancher/kubernetes-auth/authentication"
+	"github.com/PastureStack/kubernetes-authentication-bridge/authentication"
 )
 
 const (
 	APIVersion = "authentication.k8s.io/v1beta1"
 	Kind       = "TokenReview"
+	MaxBody    = 1 << 20
 )
 
-var (
-	userInfo = map[string]k8sAuthentication.UserInfo{
-		"test": k8sAuthentication.UserInfo{
-			Username: "test",
-		},
-	}
-	unauthenticatedResponse = map[string]interface{}{
-		"apiVersion": APIVersion,
-		"kind":       "TokenReview",
-		"status": map[string]interface{}{
-			"authenticated": false,
-		},
-	}
-)
+type tokenReviewRequest struct {
+	APIVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Spec       struct {
+		Token string `json:"token"`
+	} `json:"spec"`
+}
 
-func Authentication(provider authentication.Provider) func(w http.ResponseWriter, r *http.Request) {
+type tokenReviewResponse struct {
+	APIVersion string            `json:"apiVersion"`
+	Kind       string            `json:"kind"`
+	Status     tokenReviewStatus `json:"status"`
+}
+
+type tokenReviewStatus struct {
+	Authenticated bool             `json:"authenticated"`
+	User          *tokenReviewUser `json:"user,omitempty"`
+	Error         string           `json:"error,omitempty"`
+}
+
+type tokenReviewUser struct {
+	Username string   `json:"username"`
+	UID      string   `json:"uid,omitempty"`
+	Groups   []string `json:"groups,omitempty"`
+}
+
+func Authentication(provider authentication.Provider, debug bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tokenReviewResponse, err := reviewAuthentication(provider, w, r)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			writeJSON(w, http.StatusMethodNotAllowed, unauthenticated("method not allowed"))
 			return
 		}
 
-		response, err := json.Marshal(tokenReviewResponse)
+		response, err := reviewAuthentication(r.Context(), provider, w, r, debug)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+			status := http.StatusBadRequest
+			message := "invalid token review request"
+			if errors.Is(err, errProviderUnavailable) {
+				status = http.StatusBadGateway
+				message = "authentication provider unavailable"
+			}
+			writeJSON(w, status, unauthenticated(message))
 			return
 		}
-		log.Debugf("Authentication response: %s", string(response))
-		w.Write(response)
+		writeJSON(w, http.StatusOK, response)
 	}
 }
 
-func reviewAuthentication(provider authentication.Provider, w http.ResponseWriter, r *http.Request) (map[string]interface{}, error) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
+var errProviderUnavailable = errors.New("authentication provider unavailable")
+
+func reviewAuthentication(ctx context.Context, provider authentication.Provider, w http.ResponseWriter, r *http.Request, debug bool) (tokenReviewResponse, error) {
 	defer r.Body.Close()
-
-	log.Debugf("Authentication request: %s", string(body))
-
-	var tokenReviewRequest k8sAuthentication.TokenReview
-	if err = json.Unmarshal(body, &tokenReviewRequest); err != nil {
-		return nil, err
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, MaxBody))
+	var request tokenReviewRequest
+	if err := decoder.Decode(&request); err != nil {
+		return tokenReviewResponse{}, err
+	}
+	var trailing interface{}
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			err = errors.New("multiple JSON values")
+		}
+		return tokenReviewResponse{}, err
 	}
 
-	if tokenReviewRequest.APIVersion != APIVersion {
-		return nil, fmt.Errorf("Unsupported API version %s", tokenReviewRequest.APIVersion)
+	if request.APIVersion != APIVersion || request.Kind != Kind {
+		return tokenReviewResponse{}, fmt.Errorf("unsupported token review contract")
 	}
 
-	token := strings.TrimSpace(tokenReviewRequest.Spec.Token)
+	token := strings.TrimSpace(request.Spec.Token)
+	if token == "" {
+		return unauthenticated(""), nil
+	}
+	if debug {
+		log.Printf("authentication request apiVersion=%s kind=%s token=%s", request.APIVersion, request.Kind, tokenFingerprint(token))
+	}
 
-	userInfo, err := provider.Lookup(token)
+	userInfo, err := provider.Lookup(ctx, token)
 	if err != nil {
-		return nil, err
+		log.Printf("authentication provider request failed for token %s", tokenFingerprint(token))
+		return tokenReviewResponse{}, fmt.Errorf("%w: %v", errProviderUnavailable, err)
 	}
-	if userInfo == nil {
-		return unauthenticatedResponse, nil
+	if userInfo == nil || strings.TrimSpace(userInfo.Username) == "" {
+		return unauthenticated(""), nil
 	}
 
-	return map[string]interface{}{
-		"apiVersion": APIVersion,
-		"kind":       "TokenReview",
-		"status": map[string]interface{}{
-			"authenticated": true,
-			"user": map[string]interface{}{
-				"username": userInfo.Username,
-				"groups":   userInfo.Groups,
+	return tokenReviewResponse{
+		APIVersion: APIVersion,
+		Kind:       Kind,
+		Status: tokenReviewStatus{
+			Authenticated: true,
+			User: &tokenReviewUser{
+				Username: userInfo.Username,
+				UID:      userInfo.UID,
+				Groups:   userInfo.Groups,
 			},
 		},
 	}, nil
+}
+
+func unauthenticated(message string) tokenReviewResponse {
+	return tokenReviewResponse{
+		APIVersion: APIVersion,
+		Kind:       Kind,
+		Status: tokenReviewStatus{
+			Authenticated: false,
+			Error:         message,
+		},
+	}
+}
+
+func writeJSON(w http.ResponseWriter, status int, value tokenReviewResponse) {
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(value); err != nil {
+		log.Printf("token review response write failed: %v", err)
+	}
+}
+
+func tokenFingerprint(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return fmt.Sprintf("len=%d sha256=%s", len(token), hex.EncodeToString(sum[:])[:16])
 }

@@ -1,0 +1,96 @@
+name: CodeQL verification
+
+on:
+  push:
+    branches:
+      - 'verification/kubernetes-authentication-bridge-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install verified Go toolchain
+        shell: bash
+        env:
+          GO_VERSION: 1.26.5
+          GO_LINUX_AMD64_SHA256: 5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053
+        run: |
+          set -euo pipefail
+          archive="go${GO_VERSION}.linux-amd64.tar.gz"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+            --output "/tmp/${archive}" "https://go.dev/dl/${archive}"
+          printf '%s  %s\n' "$GO_LINUX_AMD64_SHA256" "/tmp/${archive}" | sha256sum -c -
+          sudo rm -rf /usr/local/go
+          sudo tar -C /usr/local -xzf "/tmp/${archive}"
+          printf '/usr/local/go/bin\n' >> "$GITHUB_PATH"
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@24c7eb380a2dc368f2d129e4c65e51d172983a1e
+        with:
+          languages: go
+          queries: security-extended
+          build-mode: autobuild
+
+      - name: Autobuild the same package graph as default setup
+        uses: github/codeql-action/autobuild@24c7eb380a2dc368f2d129e4c65e51d172983a1e
+
+      - name: Analyze without publishing temporary alerts
+        uses: github/codeql-action/analyze@24c7eb380a2dc368f2d129e4c65e51d172983a1e
+        with:
+          category: '/language:go'
+          upload: never
+          output: codeql-results
+
+      - name: Reject Critical and High findings
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob
+          import json
+
+          blocked = []
+          for path in glob.glob('codeql-results/**/*.sarif', recursive=True):
+              with open(path, encoding='utf-8') as stream:
+                  sarif = json.load(stream)
+              for run in sarif.get('runs', []):
+                  rules = {
+                      rule.get('id'): rule
+                      for rule in run.get('tool', {}).get('driver', {}).get('rules', [])
+                  }
+                  for result in run.get('results', []):
+                      rule = rules.get(result.get('ruleId'), {})
+                      severity = str(rule.get('properties', {}).get('security-severity', '0'))
+                      try:
+                          score = float(severity)
+                      except ValueError:
+                          score = 0.0
+                      if score >= 7.0:
+                          blocked.append((result.get('ruleId'), score))
+          print('codeql_critical_high=' + str(len(blocked)))
+          if blocked:
+              for rule_id, score in blocked:
+                  print(f'{rule_id}\t{score}')
+              raise SystemExit(1)
+          PY
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: kubernetes-authentication-bridge-codeql-${{ github.sha }}
+          path: codeql-results/
+          if-no-files-found: warn
+          retention-days: 7

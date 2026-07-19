@@ -1,14 +1,19 @@
-FROM rancher/agent-base:v0.3.0
+FROM gcr.io/distroless/static-debian12@sha256:4b2a093ef4649bccd586625090a3c668b254cfe180dee54f4c94f3e9bd7e381e
 
-RUN apt-get update -y \
-    && apt-get install -y wget curl jq unzip
+ARG IMAGE_VERSION=dev
+ARG SOURCE_REVISION=unknown
 
-COPY kubernetes-auth /usr/bin/
-COPY entry.sh /usr/bin/
+COPY ./kubernetes-authentication-bridge /usr/local/bin/kubernetes-authentication-bridge
+COPY ./LICENSE ./SECURITY.md ./ORIGIN.md ./COMPATIBILITY.md /licenses/
 
-ENV SSL_SCRIPT_COMMIT 98660ada3d800f653fc1f105771b5173f9d1a019
-RUN wget -O /usr/bin/update-rancher-ssl https://raw.githubusercontent.com/rancher/rancher/${SSL_SCRIPT_COMMIT}/server/bin/update-rancher-ssl && \
-    chmod +x /usr/bin/update-rancher-ssl
+LABEL org.opencontainers.image.title="pasturestack-kubernetes-authentication-bridge" \
+      org.opencontainers.image.description="PastureStack Kubernetes authentication compatibility bridge" \
+      org.opencontainers.image.version="${IMAGE_VERSION}" \
+      org.opencontainers.image.revision="${SOURCE_REVISION}" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.source="https://github.com/PastureStack/kubernetes-authentication-bridge" \
+      io.pasturestack.compatibility.contract="legacy-kubernetes-tokenreview-v1beta1"
 
-ENTRYPOINT ["/usr/bin/entry.sh"]
-CMD ["kubernetes-auth"]
+USER 65532:65532
+EXPOSE 8080 10240
+ENTRYPOINT ["/usr/local/bin/kubernetes-authentication-bridge"]
