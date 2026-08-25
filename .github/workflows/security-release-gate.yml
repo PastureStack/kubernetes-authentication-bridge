@@ -27,7 +27,7 @@ jobs:
       TRIVY_CACHE: /tmp/pasturestack-kubernetes-authentication-bridge-trivy-cache
     steps:
       - name: Check out the complete source history
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -392,7 +392,7 @@ jobs:
 
       - name: Upload short-lived security evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: kubernetes-authentication-bridge-security-evidence-${{ github.run_id }}
           path: dist/
