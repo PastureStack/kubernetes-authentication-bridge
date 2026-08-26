@@ -51,9 +51,15 @@ type options struct {
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
 	if err := run(os.Args[1:], os.Stdin, os.Stdout); err != nil {
-		log.Printf("kubernetes authentication bridge stopped: %v", err)
+		log.Printf("kubernetes authentication bridge stopped: %s", safeLogValue(err))
 		os.Exit(1)
 	}
+}
+
+func safeLogValue(value interface{}) string {
+	text := fmt.Sprint(value)
+	text = strings.ReplaceAll(text, "\r", "")
+	return strings.ReplaceAll(text, "\n", " ")
 }
 
 func run(arguments []string, stdin io.Reader, stdout io.Writer) error {
