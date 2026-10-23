@@ -16,10 +16,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
-      CANDIDATE_VERSION: 0.0.12
-      CANDIDATE_TAG: v0.0.12
-      IMAGE: pasturestack/kubernetes-authentication-bridge:v0.0.12
-      DAPPER_IMAGE: pasturestack-kubernetes-authentication-bridge-dapper:0.0.12
+      CANDIDATE_VERSION: 0.0.13
+      CANDIDATE_TAG: v0.0.13
+      IMAGE: pasturestack/kubernetes-authentication-bridge:v0.0.13
+      DAPPER_IMAGE: pasturestack-kubernetes-authentication-bridge-dapper:0.0.13
       KUBERNETES_SERVER_VERSION: v1.12.10
       KUBERNETES_SERVER_SHA512: 201ca1af1c4fbecd598a8a6dc0ff5c865e4dab767ec2e768e8100b0c6c450c5ae1ab773aad9e5cdf3f61c15abf3a28f7c4640fbaaac097096905366acbd90a97
       ETCD_TEST_IMAGE: registry.k8s.io/etcd-amd64:3.2.24@sha256:7b073bdab8c52dc23dfb3e2101597d30304437869ad8c0b425301e96a066c408
@@ -349,9 +349,9 @@ jobs:
               "$TRIVY_IMAGE" image --cache-dir /root/.cache/trivy \
               --skip-db-update --offline-scan "$@"
           }
-          run_image_scan --scanners vuln,secret --severity CRITICAL,HIGH \
+          run_image_scan --scanners vuln,secret --list-all-pkgs \
             --format json --output /evidence/runtime-scan.json "$IMAGE"
-          run_image_scan --scanners vuln,secret --severity CRITICAL,HIGH \
+          run_image_scan --scanners vuln,secret --list-all-pkgs \
             --format json --output /evidence/dapper-scan.json "$DAPPER_IMAGE"
           run_image_scan --scanners vuln --severity CRITICAL,HIGH \
             --vex /source/security/dapper.openvex.json \
@@ -382,6 +382,15 @@ jobs:
             dist/dapper-scan.json \
             security/dapper.openvex.json \
             dist/dapper-vex-audit.json
+
+      - name: Enforce full runtime vulnerability policy
+        run: |
+          bash .github/scripts/check-builder-header-boundary.sh "$DAPPER_IMAGE" > dist/dapper-header-boundary.json
+          docker run --rm --entrypoint cat "$DAPPER_IMAGE" /licenses/buildx-package-graph.txt > dist/buildx-package-graph.txt
+          python3 .github/scripts/test_builder_vulnerability_policy.py
+          python3 .github/scripts/enforce-runtime-vulnerabilities.py --scope builder --repository PastureStack/kubernetes-authentication-bridge < dist/dapper-scan.json
+          python3 .github/scripts/test_runtime_vulnerability_policy.py
+          python3 .github/scripts/enforce-runtime-vulnerabilities.py --repository PastureStack/kubernetes-authentication-bridge < dist/runtime-scan.json
 
       - name: Record evidence checksums
         if: always()

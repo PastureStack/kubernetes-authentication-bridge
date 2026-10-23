@@ -55,3 +55,15 @@ The inherited project remains licensed under [Apache License 2.0](LICENSE). Copy
 ## October 2026 security maintenance
 
 Maintained Go builds select the patched Go 1.27.3 compiler without raising the existing Go language requirement. Ubuntu build/runtime stages apply the checksum-pinned `ca-certificates 20260816ubuntu0.26.04.1` security package after their frozen APT baseline; the final trust store and installed version are verified. Release artifacts must pass the repository's existing checks before publication.
+
+## Full-severity security rebuild candidate
+
+The next compatible release candidate is **v0.0.13**, not yet published. It retains the existing Go binary/API contract and shell-free, non-root runtime, and overlays the official Debian 12 tzdata 2026c-0+deb12u1 and ca-certificates 20250419~deb12u2 payloads. Package metadata is updated from the same verified packages; revoked roots are removed rather than merged back.
+
+The full-severity runtime gate rejects every finding with an official fix,
+including LOW, MEDIUM and UNKNOWN. Only exact reviewed LOW/MEDIUM no-fix entries
+may pass. Existing v0.0.12 remains published for provenance, but is not the fully
+patched candidate.
+### Complete build-environment gate
+
+The Dapper scan retains all severities and requires nonempty package analysis for the expected Go binaries. Any available fixed version fails, including Low, Medium and Unknown findings. Other Low/Medium findings require an exact package/version/PURL entry backed by the official vendor tracker. The pinned userspace kernel-header exception additionally requires the reviewed CVE set, actual header payload paths, and absence of kernel images/modules; it never permits an available fix. Unknown module findings require the separately verified exact source package graph, not a generic severity exemption.
