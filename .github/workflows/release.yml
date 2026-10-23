@@ -17,11 +17,11 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       PRODUCER_RUN: ${{ inputs.producer_run }}
-      RELEASE_TAG: v0.0.12
+      RELEASE_TAG: v0.0.13
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: v0.0.12
+          ref: v0.0.13
           fetch-depth: 0
           persist-credentials: false
       - name: Verify immutable tag and successful producer
@@ -47,7 +47,7 @@ jobs:
           gzip -dc dist/security-runtime/images.tar.gz | docker load
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
-          source_image='pasturestack/kubernetes-authentication-bridge:v0.0.12'
+          source_image='pasturestack/kubernetes-authentication-bridge:v0.0.13'
           remote_image="ghcr.io/pasturestack/kubernetes-authentication-bridge:$RELEASE_TAG"
           if docker manifest inspect "$remote_image" >/dev/null 2>"$RUNNER_TEMP/manifest-error"; then
             echo "Refusing to replace an existing immutable image tag: $remote_image" >&2; exit 1
