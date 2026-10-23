@@ -8,7 +8,9 @@ RUN set -eux; \
     echo '2a78776091c7ed05202d9348569fd227e8106efb71680f13451faa6a448e6f13  /tmp/buildx-security.patch' | sha256sum -c -; \
     mkdir /src; tar -xzf /tmp/buildx.tar.gz -C /src --strip-components=1; \
     cd /src; git apply /tmp/buildx-security.patch; \
-    GOTOOLCHAIN=local go get golang.org/x/net@v0.60.0 golang.org/x/mod@v0.41.0 google.golang.org/grpc@v1.83.2 github.com/containerd/containerd/v2@v2.3.4; \
+    GOTOOLCHAIN=local go get golang.org/x/net@v0.60.0 golang.org/x/mod@v0.41.0 google.golang.org/grpc@v1.83.2 github.com/containerd/containerd/v2@v2.3.7 \
+      go.opentelemetry.io/otel/sdk@v1.45.0 go.opentelemetry.io/otel/exporters/otlp/otlptrace@v1.45.0 \
+      go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@v1.45.0 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp@v1.45.0; \
     GOTOOLCHAIN=local CGO_ENABLED=0 go build -mod=mod -trimpath -buildvcs=false \
       -ldflags '-s -w -buildid= -X github.com/docker/buildx/version.Version=v0.36.1 -X github.com/docker/buildx/version.Revision=1d8dde89b8aba914e05e45366770736fea1fd690 -X github.com/docker/buildx/version.Package=github.com/docker/buildx' \
       -o /buildx ./cmd/buildx; \
