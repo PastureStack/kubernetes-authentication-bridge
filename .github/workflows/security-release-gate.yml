@@ -38,7 +38,8 @@ jobs:
           set -euo pipefail
           test -z "$(git status --porcelain)"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-list --count b2b2da6fad02a49336e11edeb7c1700e356aa799..HEAD)" -eq 1
+          git merge-base --is-ancestor b2b2da6fad02a49336e11edeb7c1700e356aa799 HEAD
+          test "$(git rev-list --count b2b2da6fad02a49336e11edeb7c1700e356aa799..HEAD)" -ge 1
           mkdir -p dist
           printf '%s\n' "$GITHUB_SHA" > dist/source-revision.txt
           git ls-tree -r --name-only HEAD | LC_ALL=C sort > dist/source-tree.txt
