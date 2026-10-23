@@ -5,7 +5,7 @@ COPY --from=bootstrap-ca-certificates /etc/ssl/certs/ca-certificates.crt /etc/ss
 ADD --checksum=sha256:fb28b5c2a198d05482f0656dfb7ee161240a904e36697bf7108e5d517f23854b https://codeload.github.com/docker/buildx/tar.gz/1d8dde89b8aba914e05e45366770736fea1fd690 /tmp/buildx.tar.gz
 COPY package/buildx-security.patch /tmp/buildx-security.patch
 RUN set -eux; \
-    echo 'a29fdda204d592d0d46ed32b5fdc4336a7b3a7276301836d0a75b9386ca780f7  /tmp/buildx-security.patch' | sha256sum -c -; \
+    echo '2a78776091c7ed05202d9348569fd227e8106efb71680f13451faa6a448e6f13  /tmp/buildx-security.patch' | sha256sum -c -; \
     mkdir /src; tar -xzf /tmp/buildx.tar.gz -C /src --strip-components=1; \
     cd /src; git apply /tmp/buildx-security.patch; \
     GOTOOLCHAIN=local go get golang.org/x/net@v0.60.0 golang.org/x/mod@v0.41.0 google.golang.org/grpc@v1.83.2; \
