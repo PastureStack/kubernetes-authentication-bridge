@@ -8,13 +8,13 @@ PastureStack is an independent community effort to preserve, audit, and moderniz
 
 ## Published release
 
-The current [published release is v0.0.12](https://github.com/PastureStack/kubernetes-authentication-bridge/releases/tag/v0.0.12). Its user-facing image tag is:
+The current [published release is v0.0.13](https://github.com/PastureStack/kubernetes-authentication-bridge/releases/tag/v0.0.13). Its user-facing image tag is:
 
 ```text
-ghcr.io/pasturestack/kubernetes-authentication-bridge:v0.0.12
+ghcr.io/pasturestack/kubernetes-authentication-bridge:v0.0.13
 ```
 
-The exact producer `bff34a6be17711eba25a03a77c619ee4ee264fdd` was published by [run 39963092840](https://github.com/PastureStack/kubernetes-authentication-bridge/actions/runs/39963092840), with registry digest `sha256:bb6f0f9428bb97915f0a39aadd49026ebcb0f632a4a3102f0b727355fbf2789f`. This component publication does not deploy Server. After all required checks pass, the separate manual release workflow accepts a successful security-gate run and publishes only its checksum-verified runtime archive. Its source tree must match the annotated release tag, and an existing registry tag is never replaced. Existing historical releases remain immutable. Every new PastureStack build uses plain numeric semantic versions without a product or maintenance-count suffix.
+The original producer, publication evidence and registry digest are recorded under [Full-severity security release](#full-severity-security-release). This component publication does not deploy Server. After all required checks pass, the separate manual release workflow accepts a successful security-gate run and publishes only its checksum-verified runtime archive. Its source tree must match the annotated release tag, and an existing registry tag is never replaced. Existing historical releases remain immutable. Every new PastureStack build uses plain numeric semantic versions without a product or maintenance-count suffix.
 
 The Runtime is a static, standard-library-only Go binary in a digest-pinned distroless image. It runs as UID/GID `65532`, contains no shell or package manager, follows no HTTP redirect while carrying credentials, applies bounded request and archive limits, and logs only bounded token fingerprints when debug mode is explicitly enabled. The old vendored CLI, logging, Kubernetes client, and generated control-plane client trees are no longer part of the active source or artifact.
 
@@ -41,8 +41,8 @@ Run from a Docker-capable Linux host:
 ```sh
 make validate
 make test
-make build VERSION_OVERRIDE=0.0.12
-make package VERSION_OVERRIDE=0.0.12 TAG=v0.0.12 \
+make build VERSION_OVERRIDE=0.0.13
+make package VERSION_OVERRIDE=0.0.13 TAG=v0.0.13 \
   IMAGE_NAME=pasturestack/kubernetes-authentication-bridge
 ```
 
