@@ -429,6 +429,24 @@ jobs:
             .invalid_status == 401
           ' dist/kubernetes-integration.json >/dev/null
 
+      - name: Retain the exact verified runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/security-runtime
+          docker image inspect "$IMAGE" > dist/security-runtime/images.json
+          docker save "$IMAGE" | gzip -n > dist/security-runtime/images.tar.gz
+          cp dist/runtime-scan.json dist/runtime-sbom.cdx.json dist/security-runtime/
+          printf '%s\n' "$GITHUB_SHA" > dist/security-runtime/source-revision.txt
+          (cd dist/security-runtime && sha256sum -- * > SHA256SUMS)
+      - name: Upload exact runtime release bytes
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: security-runtime-${{ github.sha }}
+          path: dist/security-runtime/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Remove verification-only images and cache
         if: always()
         shell: bash

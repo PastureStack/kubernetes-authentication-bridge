@@ -14,7 +14,7 @@ The reviewed numeric candidate is `0.0.12`. If publication is separately approve
 ghcr.io/pasturestack/kubernetes-authentication-bridge:v0.0.12
 ```
 
-The source review does not publish or deploy that image. Existing historical releases remain immutable. Every new PastureStack build uses plain numeric semantic versions without a product or maintenance-count suffix.
+The source review does not publish or deploy that image. After all required checks pass, the separate manual release workflow accepts a successful security-gate run and publishes only its checksum-verified runtime archive. Its source tree must match the annotated release tag, and an existing registry tag is never replaced. Existing historical releases remain immutable. Every new PastureStack build uses plain numeric semantic versions without a product or maintenance-count suffix.
 
 The Runtime is a static, standard-library-only Go binary in a digest-pinned distroless image. It runs as UID/GID `65532`, contains no shell or package manager, follows no HTTP redirect while carrying credentials, applies bounded request and archive limits, and logs only bounded token fingerprints when debug mode is explicitly enabled. The old vendored CLI, logging, Kubernetes client, and generated control-plane client trees are no longer part of the active source or artifact.
 
