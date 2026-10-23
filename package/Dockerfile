@@ -6,13 +6,17 @@ ADD --checksum=sha256:c6bdac9aa03e89a112c8d900cb60321889cfec535e0397b74383bd10c8
 ADD --checksum=sha256:b9f76b5271a7ac373fd5e7e1b5b826a71ddd702b42a0d104955ecb1acfffc94b https://security.debian.org/debian-security/pool/updates/main/c/ca-certificates/ca-certificates_20250419~deb12u2_all.deb /tmp/ca-certificates.deb
 # Update actual package payloads and their installed metadata together.
 # Only this build-owned rootfs is changed; no shell/package manager enters the runtime.
-RUN set -eu; \
+RUN set -eux; \
     test "$(dpkg-deb -f /tmp/tzdata.deb Version)" = '2026c-0+deb12u1'; \
     test "$(dpkg-deb -f /tmp/ca-certificates.deb Version)" = '20250419~deb12u2'; \
     rm -rf /rootfs/etc/ssl/certs /rootfs/usr/share/ca-certificates; \
     for package in tzdata ca-certificates; do \
         test "$(dpkg-deb -f "/tmp/$package.deb" Package)" = "$package"; \
-        status_file=$(grep -l "^Package: $package$" /rootfs/var/lib/dpkg/status.d/*); \
+        status_file=$(grep -l "^Package: $package$" /rootfs/var/lib/dpkg/status.d/* || true); \
+        if [ "$package" = ca-certificates ] && [ -z "$status_file" ]; then \
+            status_file=/rootfs/var/lib/dpkg/status.d/ca-certificates; \
+            touch "$status_file"; \
+        fi; \
         test "$(printf '%s\n' "$status_file" | wc -l)" -eq 1; \
         test -f "$status_file"; \
         dpkg-deb --extract "/tmp/$package.deb" /rootfs; \
