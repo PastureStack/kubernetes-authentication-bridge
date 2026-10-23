@@ -1,18 +1,35 @@
-FROM docker:29.7.2-cli@sha256:000bb62ff495f986c9f5578eb67cc2cb98b91138eda81d7762d5371eb8a497fe AS bootstrap-ca-certificates
+FROM docker:29.9.2-cli@sha256:000bb62ff495f986c9f5578eb67cc2cb98b91138eda81d7762d5371eb8a497fe AS bootstrap-ca-certificates
 
-FROM docker/buildx-bin:0.36.1@sha256:1f2f6b2be4a2511ada67336e76892f1a588c89746009dd4b21069e4d867465be AS buildx-plugin
+FROM golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS buildx-plugin
+COPY --from=bootstrap-ca-certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+ADD --checksum=sha256:fb28b5c2a198d05482f0656dfb7ee161240a904e36697bf7108e5d517f23854b https://codeload.github.com/docker/buildx/tar.gz/1d8dde89b8aba914e05e45366770736fea1fd690 /tmp/buildx.tar.gz
+COPY package/buildx-security.patch /tmp/buildx-security.patch
+RUN set -eux; \
+    echo '2a78776091c7ed05202d9348569fd227e8106efb71680f13451faa6a448e6f13  /tmp/buildx-security.patch' | sha256sum -c -; \
+    mkdir /src; tar -xzf /tmp/buildx.tar.gz -C /src --strip-components=1; \
+    cd /src; git apply /tmp/buildx-security.patch; \
+    GOTOOLCHAIN=local go get golang.org/x/net@v0.60.0 golang.org/x/mod@v0.41.0 google.golang.org/grpc@v1.83.2 github.com/containerd/containerd/v2@v2.3.4; \
+    GOTOOLCHAIN=local CGO_ENABLED=0 go build -mod=mod -trimpath -buildvcs=false \
+      -ldflags '-s -w -buildid= -X github.com/docker/buildx/version.Version=v0.36.1 -X github.com/docker/buildx/version.Revision=1d8dde89b8aba914e05e45366770736fea1fd690 -X github.com/docker/buildx/version.Package=github.com/docker/buildx' \
+      -o /buildx ./cmd/buildx; \
+    go version -m /buildx | tee /buildx-go-version.txt; \
+    test "$(go env GOVERSION)" = go1.27.3; \
+    test "$(go list -mod=mod -m -f '{{.Version}}' golang.org/x/net)" = v0.60.0
 
 FROM ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea2648d2c0e09b
 
 COPY --from=bootstrap-ca-certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=buildx-plugin /buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
+COPY --from=buildx-plugin /buildx-go-version.txt /licenses/buildx-go-version.txt
 COPY package/ubuntu-apt.lock /licenses/ubuntu-apt.lock
+COPY package/ubuntu-security-packages.lock /licenses/ubuntu-security-packages.lock
+COPY scripts/install-ubuntu-security-updates /usr/local/bin/install-ubuntu-security-updates
 
 ARG DAPPER_HOST_ARCH=amd64
-ARG DOCKER_VERSION=29.7.2
-ARG DOCKER_LINUX_AMD64_SHA256=803d433f226db4776e1768fd319fc6c6e4935a456acf84fcc0080818b854bc8f
-ARG GO_VERSION=1.27.0
-ARG GO_LINUX_AMD64_SHA256=675c26c449cbb18fc24b74650de1eabbae6e16f64326fd85a283fb3b58280685
+ARG DOCKER_VERSION=29.9.2
+ARG DOCKER_LINUX_AMD64_SHA256=9ac225999fd5e863f7694c728ef23d480616b1e5639328fa309befd4243d69eb
+ARG GO_VERSION=1.27.3
+ARG GO_LINUX_AMD64_SHA256=65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HOST_ARCH=${DAPPER_HOST_ARCH} \
@@ -24,6 +41,7 @@ ENV HOST_ARCH=${DAPPER_HOST_ARCH} \
     GOTELEMETRY=off \
     GOCACHE=/tmp/go-build-cache
 
+ADD --checksum=sha256:5b6326f1932cfd7be57130561dc78192f09ed9f58bfbe6606ed0c50510c3b6cd https://archive.ubuntu.com/ubuntu/pool/main/c/ca-certificates/ca-certificates_20260816ubuntu0.26.04.1_all.deb /opt/pasturestack-ca-certificates.deb
 RUN set -eux; \
     . /licenses/ubuntu-apt.lock; \
     find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -exec sed -i \
@@ -33,7 +51,7 @@ RUN set -eux; \
     apt-get --snapshot "${UBUNTU_APT_SNAPSHOT}" update; \
     apt-get --snapshot "${UBUNTU_APT_SNAPSHOT}" install -y --no-install-recommends \
         bash="${UBUNTU_APT_BASH_VERSION}" \
-        ca-certificates="${UBUNTU_APT_CA_CERTIFICATES_VERSION}" \
+        ca-certificates="${UBUNTU_APT_CA_CERTIFICATES_BOOTSTRAP_VERSION}" \
         curl="${UBUNTU_APT_CURL_VERSION}" \
         file="${UBUNTU_APT_FILE_VERSION}" \
         gcc="${UBUNTU_APT_GCC_VERSION}" \
@@ -44,6 +62,12 @@ RUN set -eux; \
         make="${UBUNTU_APT_MAKE_VERSION}" \
         tar="${UBUNTU_APT_TAR_VERSION}" \
         xz-utils="${UBUNTU_APT_XZ_UTILS_VERSION}"; \
+    dpkg -i /opt/pasturestack-ca-certificates.deb && \
+    update-ca-certificates --fresh && \
+    test "$(dpkg-query -W -f='${Version}' ca-certificates)" = '20260816ubuntu0.26.04.1' && \
+    test ! -e /usr/share/ca-certificates/mozilla/emSign_ECC_Root_CA_-_G3.crt && \
+    rm -f /opt/pasturestack-ca-certificates.deb && \
+    sh /usr/local/bin/install-ubuntu-security-updates /licenses/ubuntu-security-packages.lock /etc/ssl/certs/ca-certificates.crt && \
     { \
         printf 'snapshot\t%s\n' "${UBUNTU_APT_SNAPSHOT}"; \
         dpkg-query -W -f='${binary:Package}\t${Version}\n' | LC_ALL=C sort; \

@@ -41,7 +41,7 @@ jq -n \
             $vex_findings[]
             | select(
                 .status != "not_affected" or
-                .justification != "vulnerable_code_not_in_execute_path" or
+                .justification != "vulnerable_code_not_present" or
                 (.impact_statement | type) != "string" or
                 (.impact_statement | length) < 80
               )

@@ -2,7 +2,7 @@ TARGETS := $(shell find scripts -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C so
 DAPPER_IMAGE ?= pasturestack-kubernetes-authentication-bridge-dapper:ubuntu26
 DAPPER_SOURCE ?= /source
 DAPPER_HOST_ARCH ?= amd64
-DOCKER_VERSION ?= 29.7.2
+DOCKER_VERSION ?= 29.9.2
 DOCKER_BUILD_NETWORK ?= host
 
 dapper-image:

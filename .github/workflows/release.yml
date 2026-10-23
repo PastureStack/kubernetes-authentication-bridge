@@ -1,0 +1,65 @@
+name: Publish verified immutable runtime
+on:
+  workflow_dispatch:
+    inputs:
+      producer_run:
+        description: Successful exact-source security gate run
+        required: true
+        type: string
+permissions:
+  contents: write
+  actions: read
+  packages: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRODUCER_RUN: ${{ inputs.producer_run }}
+      RELEASE_TAG: v0.0.12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: v0.0.12
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify immutable tag and successful producer
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PRODUCER_RUN" =~ ^[0-9]+$ ]]
+          test "$(git cat-file -t "refs/tags/$RELEASE_TAG")" = tag
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{}")"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCER_RUN" > "$RUNNER_TEMP/producer.json"
+          jq -e '.status == "completed" and .conclusion == "success" and .path == ".github/workflows/security-release-gate.yml"' "$RUNNER_TEMP/producer.json"
+          source=$(jq -r .head_sha "$RUNNER_TEMP/producer.json")
+          [[ "$source" =~ ^[0-9a-f]{40}$ ]]
+          tree=$(gh api "repos/$GITHUB_REPOSITORY/commits/$source" --jq .commit.tree.sha)
+          test "$tree" = "$(git rev-parse 'HEAD^{tree}')"
+          gh run download "$PRODUCER_RUN" --repo "$GITHUB_REPOSITORY" --name "security-runtime-$source" --dir dist/security-runtime
+          test "$(cat dist/security-runtime/source-revision.txt)" = "$source"
+          (cd dist/security-runtime && sha256sum --check SHA256SUMS)
+      - name: Publish exact scanned image and release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          gzip -dc dist/security-runtime/images.tar.gz | docker load
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          source_image='pasturestack/kubernetes-authentication-bridge:v0.0.12'
+          remote_image="ghcr.io/pasturestack/kubernetes-authentication-bridge:$RELEASE_TAG"
+          if docker manifest inspect "$remote_image" >/dev/null 2>"$RUNNER_TEMP/manifest-error"; then
+            echo "Refusing to replace an existing immutable image tag: $remote_image" >&2; exit 1
+          else
+            grep -Eq 'manifest unknown|no such manifest' "$RUNNER_TEMP/manifest-error"
+          fi
+          docker tag "$source_image" "$remote_image"
+          docker push "$remote_image" | tee "$RUNNER_TEMP/push-log"
+          pushed=$(awk '/digest: sha256:/{for(i=1;i<=NF;i++) if($i=="digest:") print $(i+1)}' "$RUNNER_TEMP/push-log")
+          readback=$(docker buildx imagetools inspect "$remote_image" | awk '$1=="Digest:"{print $2; exit}')
+          test "$pushed" = "$readback"
+          [[ "$readback" =~ ^sha256:[0-9a-f]{64}$ ]]
+          source=$(cat dist/security-runtime/source-revision.txt)
+          jq -n --arg image "$remote_image" --arg digest "$readback" --arg source "$source" '{image:$image,digest:$digest,source:$source}' > dist/security-runtime/registry-images.json
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REPOSITORY $RELEASE_TAG" --notes "Exact tested and scanned producer $source, run $PRODUCER_RUN. The immutable release tag has the same source tree. No deployment." dist/security-runtime/*
