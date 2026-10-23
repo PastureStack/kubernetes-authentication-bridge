@@ -386,9 +386,7 @@ jobs:
       - name: Enforce full runtime vulnerability policy
         run: |
           python3 .github/scripts/test_runtime_vulnerability_policy.py
-          python3 .github/scripts/enforce-runtime-vulnerabilities.py \
-            dist/runtime-scan.json .github/runtime-unfixed.json \
-            --repository PastureStack/kubernetes-authentication-bridge
+          python3 .github/scripts/enforce-runtime-vulnerabilities.py --repository PastureStack/kubernetes-authentication-bridge < dist/runtime-scan.json
 
       - name: Record evidence checksums
         if: always()
