@@ -64,3 +64,6 @@ The full-severity runtime gate rejects every finding with an official fix,
 including LOW, MEDIUM and UNKNOWN. Only exact reviewed LOW/MEDIUM no-fix entries
 may pass. Existing v0.0.12 remains published for provenance, but is not the fully
 patched candidate.
+### Complete build-environment gate
+
+The Dapper scan retains all severities and requires nonempty package analysis for the expected Go binaries. Any available fixed version fails, including Low, Medium and Unknown findings. Other Low/Medium findings require an exact package/version/PURL entry backed by the official vendor tracker. The pinned userspace kernel-header exception additionally requires the reviewed CVE set, actual header payload paths, and absence of kernel images/modules; it never permits an available fix. Unknown module findings require the separately verified exact source package graph, not a generic severity exemption.

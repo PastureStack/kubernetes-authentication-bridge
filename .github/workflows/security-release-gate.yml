@@ -351,7 +351,7 @@ jobs:
           }
           run_image_scan --scanners vuln,secret --list-all-pkgs \
             --format json --output /evidence/runtime-scan.json "$IMAGE"
-          run_image_scan --scanners vuln,secret --severity CRITICAL,HIGH \
+          run_image_scan --scanners vuln,secret --list-all-pkgs \
             --format json --output /evidence/dapper-scan.json "$DAPPER_IMAGE"
           run_image_scan --scanners vuln --severity CRITICAL,HIGH \
             --vex /source/security/dapper.openvex.json \
@@ -385,6 +385,10 @@ jobs:
 
       - name: Enforce full runtime vulnerability policy
         run: |
+          bash .github/scripts/check-builder-header-boundary.sh "$DAPPER_IMAGE" > dist/dapper-header-boundary.json
+          docker run --rm --entrypoint cat "$DAPPER_IMAGE" /licenses/buildx-package-graph.txt > dist/buildx-package-graph.txt
+          python3 .github/scripts/test_builder_vulnerability_policy.py
+          python3 .github/scripts/enforce-runtime-vulnerabilities.py --scope builder --repository PastureStack/kubernetes-authentication-bridge < dist/dapper-scan.json
           python3 .github/scripts/test_runtime_vulnerability_policy.py
           python3 .github/scripts/enforce-runtime-vulnerabilities.py --repository PastureStack/kubernetes-authentication-bridge < dist/runtime-scan.json
 
