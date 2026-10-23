@@ -415,8 +415,8 @@ jobs:
             .build_environment.applicable.high == 0
           ' dist/security-counts.json >/dev/null
           jq -e '
-            .raw_findings == 49 and
-            .vex_statements == 49 and
+            .raw_findings == 295 and
+            .vex_statements == 295 and
             (.missing_from_vex | length) == 0 and
             (.extra_in_vex | length) == 0 and
             .invalid_statements == 0
